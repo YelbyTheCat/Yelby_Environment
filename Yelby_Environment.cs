@@ -127,41 +127,88 @@ public class Yelby_Environment : EditorWindow
             int current = 0;
 
             scroll = GUILayout.BeginScrollView(scroll, GUILayout.MaxHeight(300));
+
             //Travel layers for gather
             for (int i = 0; i < controller.layers.Length; i++)
             {
-                if (controller.layers[i].name != "Reset")
+                var currentLayer = controller.layers[i];
+                if (currentLayer.name == "Reset")
                 {
-                    GUILayout.Label(controller.layers[i].name);
+                    continue;
+                }
 
-                    //Travel states in a layer
-                    for (int j = 0; j < controller.layers[i].stateMachine.states.Length; j++)
+                GUILayout.Label(controller.layers[i].name);
+
+                //Travel sub-states in layer
+                var currentSubStateMachine = currentLayer.stateMachine.stateMachines;
+                if(currentSubStateMachine.Length != 0)
+                {
+                    for (int j = 0; j < currentSubStateMachine.Length; j++)
                     {
-                        GUILayout.BeginVertical();
-                        /*for(int a = 0; a < controller.layers[i].stateMachine.states[j].state.behaviours.Length; a++)
-                            Debug.Log(controller.layers[i].stateMachine.states[j].state.behaviours[a]);*/
-                        states.Add(controller.layers[i].stateMachine.states[j].state.motion);
-                        states[current] = EditorGUILayout.ObjectField(controller.layers[i].stateMachine.states[j].state.name, (Motion)controller.layers[i].stateMachine.states[j].state.motion, typeof(Motion), true) as Motion;
-                        GUILayout.EndVertical();
-                        current++;
+                        GUILayout.Label(currentSubStateMachine[j].stateMachine.name);
+                        var currentSubState = currentSubStateMachine[j].stateMachine.states;
+
+                        //Sub state states
+                        for (int p = 0; p < currentSubState.Length; p++)
+                        {
+                            var currentStateInSubState = currentSubState[p].state;
+                            states.Add(currentStateInSubState.motion);
+                            states[current] = EditorGUILayout.ObjectField(currentStateInSubState.name, (Motion)currentStateInSubState.motion, typeof(Motion), true) as Motion;
+                            current++;
+                        }
+                        GUILayout.Label("");
                     }
                 }
+
+                //Travel states in layer
+                var currentState = controller.layers[i].stateMachine;
+                for (int j = 0; j < currentState.states.Length; j++)
+                {
+                    var currState = currentState.states[j];
+                    GUILayout.BeginVertical();
+                    states.Add(currState.state.motion);
+                    states[current] = EditorGUILayout.ObjectField(currState.state.name, (Motion)currState.state.motion, typeof(Motion), true) as Motion;
+                    GUILayout.EndVertical();
+                    current++;
+                }
+                GUILayout.Label("");
             }
 
             //Travel layers for replace
             current = 0;
             for (int i = 0; i < controller.layers.Length; i++)
             {
-                if (controller.layers[i].name != "Reset")
+                var currentLayer = controller.layers[i];
+                if (controller.layers[i].name == "Reset")
                 {
-                    //Travel states in a layer
-                    for (int j = 0; j < controller.layers[i].stateMachine.states.Length; j++)
+                    continue;
+                }
+
+                //Travel sub-states in layer
+                var currentSubStateMachine = currentLayer.stateMachine.stateMachines;
+                if (currentSubStateMachine.Length != 0)
+                {
+                    for (int j = 0; j < currentSubStateMachine.Length; j++)
                     {
-                        GUILayout.BeginVertical();
-                        controller.layers[i].stateMachine.states[j].state.motion = states[current];
-                        GUILayout.EndVertical();
-                        current++;
+                        var currentSubState = currentSubStateMachine[j].stateMachine.states;
+
+                        //Sub state states
+                        for (int p = 0; p < currentSubState.Length; p++)
+                        {
+                            var currentStateInSubState = currentSubState[p].state;
+                            currentStateInSubState.motion = states[current];
+                            current++;
+                        }
                     }
+                }
+
+                //Travel states in a layer
+                for (int j = 0; j < controller.layers[i].stateMachine.states.Length; j++)
+                {
+                    GUILayout.BeginVertical();
+                    controller.layers[i].stateMachine.states[j].state.motion = states[current];
+                    GUILayout.EndVertical();
+                    current++;
                 }
             }
 
@@ -592,7 +639,9 @@ public class Yelby_Environment : EditorWindow
                     for (int i = 0; i < proxyAnimations.Length; i++)
                     {
                         animation = AssetDatabase.LoadAssetAtPath(path + proxyAnimations[i] + ".anim", typeof(Motion)) as Motion;
-                        list.Add(createState(animation, stateMachine, location));
+                        AnimatorState subState = createState(animation, stateMachine, location);
+                        subState.name = "VRCEmote " + (i + 1);
+                        list.Add(subState);
                         location[1] += 50;
 
                     }
@@ -625,7 +674,9 @@ public class Yelby_Environment : EditorWindow
                     for (int i = 0; i < proxyAnimations.Length; i++)
                     {
                         animation = AssetDatabase.LoadAssetAtPath(path + proxyAnimations[i] + ".anim", typeof(Motion)) as Motion;
-                        list.Add(createState(animation, stateMachine, location));
+                        AnimatorState subState = createState(animation, stateMachine, location);
+                        subState.name = "VRCEmote " + (i + 9);
+                        list.Add(subState);
                         location[1] += 50;
                     }
 
