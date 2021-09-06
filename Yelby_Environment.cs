@@ -22,6 +22,10 @@ public class Yelby_Environment : EditorWindow
     bool bAction;
     bool bFX;
 
+    bool bSitting;
+    bool bTPose;
+    bool bIKPose;
+
     /*Controllers*/
     AnimatorController cBase;
     AnimatorController cAdditive;
@@ -29,12 +33,20 @@ public class Yelby_Environment : EditorWindow
     AnimatorController cAction;
     AnimatorController cFX;
 
+    AnimatorController cSitting;
+    AnimatorController cTPose;
+    AnimatorController cIKPose;
+
     /*Scroll Views*/
     Vector2 sBase;
     Vector2 sAdditive;
     Vector2 sGesture;
     Vector2 sAction;
     Vector2 sFX;
+
+    Vector2 sSitting;
+    Vector2 sTPose;
+    Vector2 sIKPose;
 
     [MenuItem("Yelby/Yelby Environment")]
     public static void ShowWindow()
@@ -66,167 +78,327 @@ public class Yelby_Environment : EditorWindow
         }
         else
         {
+            string section = "base";
             /*Base*/
             bBase = EditorGUILayout.Foldout(bBase, "Base");
             if (bBase)
             {
-                GetAnimationController(0, cBase, ref SDK, ref sBase);
+                GetAnimationController(0, ref cBase, ref SDK, ref sBase, section);
             }
 
             /*Additive*/
             bAdditive = EditorGUILayout.Foldout(bAdditive, "Additive");
             if (bAdditive)
             {
-                GetAnimationController(1, cAdditive, ref SDK, ref sAdditive);
+                GetAnimationController(1, ref cAdditive, ref SDK, ref sAdditive, section);
             }
 
             /*Gesture*/
             bGesture = EditorGUILayout.Foldout(bGesture, "Gesture");
             if (bGesture)
             {
-                GetAnimationController(2, cGesture, ref SDK, ref sGesture);
+                GetAnimationController(2, ref cGesture, ref SDK, ref sGesture, section);
             }
 
             /*Action*/
             bAction = EditorGUILayout.Foldout(bAction, "Action");
             if (bAction)
             {
-                GetAnimationController(3, cAction, ref SDK, ref sAction);
+                GetAnimationController(3, ref cAction, ref SDK, ref sAction, section);
             }
 
             /*FX*/
             bFX = EditorGUILayout.Foldout(bFX, "FX");
             if (bFX)
             {
-                GetAnimationController(4, cFX, ref SDK, ref sFX);
+                GetAnimationController(4, ref cFX, ref SDK, ref sFX, section);
+            }
+
+            /*Sitting*/
+            bSitting = EditorGUILayout.Foldout(bSitting, "Sitting");
+            if(bSitting)
+            {
+                GetAnimationController(0, ref cSitting, ref SDK, ref sSitting, "special");
+            }
+
+            /*TPose*/
+            bTPose = EditorGUILayout.Foldout(bTPose, "TPose");
+            if (bTPose)
+            {
+                GetAnimationController(1, ref cTPose, ref SDK, ref sTPose, "special");
+            }
+
+            /*IKPose*/
+            bIKPose = EditorGUILayout.Foldout(bIKPose, "IKPose");
+            if (bIKPose)
+            {
+                GetAnimationController(2, ref cIKPose, ref SDK, ref sIKPose, "special");
             }
         }
     }
 
     /*~~~~~Methods~~~~~*/
-    private void GetAnimationController(int layerIndex, AnimatorController controller, ref VRC.SDK3.Avatars.Components.VRCAvatarDescriptor SDK, ref Vector2 scroll)
+    private void GetAnimationController(int layerIndex, ref AnimatorController controller, ref VRC.SDK3.Avatars.Components.VRCAvatarDescriptor SDK, ref Vector2 scroll, string animatorSection)
     {
         int layer = layerIndex;
-        controller = EditorGUILayout.ObjectField(SDK.baseAnimationLayers[layer].animatorController, typeof(AnimatorController), true) as AnimatorController;
-        if (controller == null)
+
+        switch(animatorSection)
         {
-            if (GUILayout.Button("Generate Default Controller"))
-            {
-                SDK.baseAnimationLayers[layer].animatorController = CreateController(avatar, SDK.baseAnimationLayers[layer].type.ToString().ToLower());
-                SDK.baseAnimationLayers[layer].isDefault = false;
-                controller = SDK.baseAnimationLayers[layer].animatorController as AnimatorController;
-            }
-        }
-        else if (controller != null)
-        {
-            SDK.baseAnimationLayers[layer].isDefault = false;
-            SDK.baseAnimationLayers[layer].animatorController = controller;
-
-            List<AnimationClip> clips = new List<AnimationClip>();
-            List<Motion> states = new List<Motion>();
-            int current = 0;
-
-            scroll = GUILayout.BeginScrollView(scroll, GUILayout.MaxHeight(300));
-
-            //Travel layers for gather
-            for (int i = 0; i < controller.layers.Length; i++)
-            {
-                var currentLayer = controller.layers[i];
-                if (currentLayer.name == "Reset")
+            case "base":
                 {
-                    continue;
-                }
-
-                GUILayout.Label(controller.layers[i].name);
-
-                //Travel sub-states in layer
-                var currentSubStateMachine = currentLayer.stateMachine.stateMachines;
-                if(currentSubStateMachine.Length != 0)
-                {
-                    for (int j = 0; j < currentSubStateMachine.Length; j++)
+                    controller = EditorGUILayout.ObjectField(SDK.baseAnimationLayers[layer].animatorController, typeof(AnimatorController), true) as AnimatorController;
+                    if (controller == null)
                     {
-                        GUILayout.Label(currentSubStateMachine[j].stateMachine.name);
-                        var currentSubState = currentSubStateMachine[j].stateMachine.states;
-
-                        //Sub state states
-                        for (int p = 0; p < currentSubState.Length; p++)
+                        if (GUILayout.Button("Generate Default Controller"))
                         {
-                            var currentStateInSubState = currentSubState[p].state;
-                            states.Add(currentStateInSubState.motion);
-                            states[current] = EditorGUILayout.ObjectField(currentStateInSubState.name, (Motion)currentStateInSubState.motion, typeof(Motion), true) as Motion;
-                            current++;
-                        }
-                        GUILayout.Label("");
-                    }
-                }
-
-                //Travel states in layer
-                var currentState = controller.layers[i].stateMachine;
-                for (int j = 0; j < currentState.states.Length; j++)
-                {
-                    var currState = currentState.states[j];
-                    GUILayout.BeginVertical();
-                    states.Add(currState.state.motion);
-                    states[current] = EditorGUILayout.ObjectField(currState.state.name, (Motion)currState.state.motion, typeof(Motion), true) as Motion;
-                    GUILayout.EndVertical();
-                    current++;
-                }
-                GUILayout.Label("");
-            }
-
-            //Travel layers for replace
-            current = 0;
-            for (int i = 0; i < controller.layers.Length; i++)
-            {
-                var currentLayer = controller.layers[i];
-                if (controller.layers[i].name == "Reset")
-                {
-                    continue;
-                }
-
-                //Travel sub-states in layer
-                var currentSubStateMachine = currentLayer.stateMachine.stateMachines;
-                if (currentSubStateMachine.Length != 0)
-                {
-                    for (int j = 0; j < currentSubStateMachine.Length; j++)
-                    {
-                        var currentSubState = currentSubStateMachine[j].stateMachine.states;
-
-                        //Sub state states
-                        for (int p = 0; p < currentSubState.Length; p++)
-                        {
-                            var currentStateInSubState = currentSubState[p].state;
-                            currentStateInSubState.motion = states[current];
-                            current++;
+                            SDK.baseAnimationLayers[layer].animatorController = CreateController(avatar, SDK.baseAnimationLayers[layer].type.ToString().ToLower());
+                            SDK.baseAnimationLayers[layer].isDefault = false;
+                            controller = SDK.baseAnimationLayers[layer].animatorController as AnimatorController;
                         }
                     }
-                }
+                    else if (controller != null)
+                    {
+                        SDK.baseAnimationLayers[layer].isDefault = false;
+                        SDK.baseAnimationLayers[layer].animatorController = controller;
 
-                //Travel states in a layer
-                for (int j = 0; j < controller.layers[i].stateMachine.states.Length; j++)
+                        List<AnimationClip> clips = new List<AnimationClip>();
+                        List<Motion> states = new List<Motion>();
+                        int current = 0;
+
+                        scroll = GUILayout.BeginScrollView(scroll, GUILayout.MaxHeight(300));
+
+                        //Travel layers for gather
+                        for (int i = 0; i < controller.layers.Length; i++)
+                        {
+                            var currentLayer = controller.layers[i];
+                            if (currentLayer.name == "Reset")
+                            {
+                                continue;
+                            }
+
+                            GUILayout.Label(controller.layers[i].name);
+
+                            //Travel sub-states in layer
+                            var currentSubStateMachine = currentLayer.stateMachine.stateMachines;
+                            if (currentSubStateMachine.Length != 0)
+                            {
+                                for (int j = 0; j < currentSubStateMachine.Length; j++)
+                                {
+                                    GUILayout.Label(currentSubStateMachine[j].stateMachine.name);
+                                    var currentSubState = currentSubStateMachine[j].stateMachine.states;
+
+                                    //Sub state states
+                                    for (int p = 0; p < currentSubState.Length; p++)
+                                    {
+                                        var currentStateInSubState = currentSubState[p].state;
+                                        states.Add(currentStateInSubState.motion);
+                                        states[current] = EditorGUILayout.ObjectField(currentStateInSubState.name, (Motion)currentStateInSubState.motion, typeof(Motion), true) as Motion;
+                                        current++;
+                                    }
+                                    GUILayout.Label("");
+                                }
+                            }
+
+                            //Travel states in layer
+                            var currentState = controller.layers[i].stateMachine;
+                            for (int j = 0; j < currentState.states.Length; j++)
+                            {
+                                var currState = currentState.states[j];
+                                GUILayout.BeginVertical();
+                                states.Add(currState.state.motion);
+                                states[current] = EditorGUILayout.ObjectField(currState.state.name, (Motion)currState.state.motion, typeof(Motion), true) as Motion;
+                                GUILayout.EndVertical();
+                                current++;
+                            }
+                            GUILayout.Label("");
+                        }
+
+                        //Travel layers for replace
+                        current = 0;
+                        for (int i = 0; i < controller.layers.Length; i++)
+                        {
+                            var currentLayer = controller.layers[i];
+                            if (controller.layers[i].name == "Reset")
+                            {
+                                continue;
+                            }
+
+                            //Travel sub-states in layer
+                            var currentSubStateMachine = currentLayer.stateMachine.stateMachines;
+                            if (currentSubStateMachine.Length != 0)
+                            {
+                                for (int j = 0; j < currentSubStateMachine.Length; j++)
+                                {
+                                    var currentSubState = currentSubStateMachine[j].stateMachine.states;
+
+                                    //Sub state states
+                                    for (int p = 0; p < currentSubState.Length; p++)
+                                    {
+                                        var currentStateInSubState = currentSubState[p].state;
+                                        currentStateInSubState.motion = states[current];
+                                        current++;
+                                    }
+                                }
+                            }
+
+                            //Travel states in a layer
+                            for (int j = 0; j < controller.layers[i].stateMachine.states.Length; j++)
+                            {
+                                GUILayout.BeginVertical();
+                                controller.layers[i].stateMachine.states[j].state.motion = states[current];
+                                GUILayout.EndVertical();
+                                current++;
+                            }
+                        }
+
+                        SDK.baseAnimationLayers[layer].animatorController = controller;
+
+                        if (GUILayout.Button("Reset"))
+                        {
+                            SDK.baseAnimationLayers[layer].animatorController = null;
+                            SDK.baseAnimationLayers[layer].isDefault = true;
+                        }
+
+                        if (GUILayout.Button("Delete Controller"))
+                        {
+                            AssetDatabase.DeleteAsset(AssetDatabase.GetAssetPath(controller));
+                            SDK.baseAnimationLayers[layer].animatorController = null;
+                            SDK.baseAnimationLayers[layer].isDefault = true;
+                        }
+                        GUILayout.EndScrollView();
+                        //AssetDatabase.Refresh();
+                    }
+                    break;
+                }
+            case "special":
                 {
-                    GUILayout.BeginVertical();
-                    controller.layers[i].stateMachine.states[j].state.motion = states[current];
-                    GUILayout.EndVertical();
-                    current++;
+                    controller = EditorGUILayout.ObjectField(SDK.specialAnimationLayers[layer].animatorController, typeof(AnimatorController), true) as AnimatorController;
+                    if (controller == null)
+                    {
+                        if (GUILayout.Button("Generate Default Controller"))
+                        {
+                            SDK.specialAnimationLayers[layer].animatorController = CreateController(avatar, SDK.specialAnimationLayers[layer].type.ToString().ToLower());
+                            SDK.specialAnimationLayers[layer].isDefault = false;
+                            controller = SDK.specialAnimationLayers[layer].animatorController as AnimatorController;
+                        }
+                    }
+                    else if (controller != null)
+                    {
+                        SDK.specialAnimationLayers[layer].isDefault = false;
+                        SDK.specialAnimationLayers[layer].animatorController = controller;
+
+                        List<AnimationClip> clips = new List<AnimationClip>();
+                        List<Motion> states = new List<Motion>();
+                        int current = 0;
+
+                        scroll = GUILayout.BeginScrollView(scroll, GUILayout.MaxHeight(300));
+
+                        //Travel layers for gather
+                        for (int i = 0; i < controller.layers.Length; i++)
+                        {
+                            var currentLayer = controller.layers[i];
+                            if (currentLayer.name == "Reset")
+                            {
+                                continue;
+                            }
+
+                            GUILayout.Label(controller.layers[i].name);
+
+                            //Travel sub-states in layer
+                            var currentSubStateMachine = currentLayer.stateMachine.stateMachines;
+                            if (currentSubStateMachine.Length != 0)
+                            {
+                                for (int j = 0; j < currentSubStateMachine.Length; j++)
+                                {
+                                    GUILayout.Label(currentSubStateMachine[j].stateMachine.name);
+                                    var currentSubState = currentSubStateMachine[j].stateMachine.states;
+
+                                    //Sub state states
+                                    for (int p = 0; p < currentSubState.Length; p++)
+                                    {
+                                        var currentStateInSubState = currentSubState[p].state;
+                                        states.Add(currentStateInSubState.motion);
+                                        states[current] = EditorGUILayout.ObjectField(currentStateInSubState.name, (Motion)currentStateInSubState.motion, typeof(Motion), true) as Motion;
+                                        current++;
+                                    }
+                                    GUILayout.Label("");
+                                }
+                            }
+
+                            //Travel states in layer
+                            var currentState = controller.layers[i].stateMachine;
+                            for (int j = 0; j < currentState.states.Length; j++)
+                            {
+                                var currState = currentState.states[j];
+                                GUILayout.BeginVertical();
+                                states.Add(currState.state.motion);
+                                states[current] = EditorGUILayout.ObjectField(currState.state.name, (Motion)currState.state.motion, typeof(Motion), true) as Motion;
+                                GUILayout.EndVertical();
+                                current++;
+                            }
+                            GUILayout.Label("");
+                        }
+
+                        //Travel layers for replace
+                        current = 0;
+                        for (int i = 0; i < controller.layers.Length; i++)
+                        {
+                            var currentLayer = controller.layers[i];
+                            if (controller.layers[i].name == "Reset")
+                            {
+                                continue;
+                            }
+
+                            //Travel sub-states in layer
+                            var currentSubStateMachine = currentLayer.stateMachine.stateMachines;
+                            if (currentSubStateMachine.Length != 0)
+                            {
+                                for (int j = 0; j < currentSubStateMachine.Length; j++)
+                                {
+                                    var currentSubState = currentSubStateMachine[j].stateMachine.states;
+
+                                    //Sub state states
+                                    for (int p = 0; p < currentSubState.Length; p++)
+                                    {
+                                        var currentStateInSubState = currentSubState[p].state;
+                                        currentStateInSubState.motion = states[current];
+                                        current++;
+                                    }
+                                }
+                            }
+
+                            //Travel states in a layer
+                            for (int j = 0; j < controller.layers[i].stateMachine.states.Length; j++)
+                            {
+                                GUILayout.BeginVertical();
+                                controller.layers[i].stateMachine.states[j].state.motion = states[current];
+                                GUILayout.EndVertical();
+                                current++;
+                            }
+                        }
+
+                        if (GUILayout.Button("Reset"))
+                        {
+                            SDK.specialAnimationLayers[layer].animatorController = null;
+                            SDK.specialAnimationLayers[layer].isDefault = true;
+                        }
+
+                        if (GUILayout.Button("Delete Controller"))
+                        {
+                            AssetDatabase.DeleteAsset(AssetDatabase.GetAssetPath(controller));
+                            SDK.specialAnimationLayers[layer].animatorController = null;
+                            SDK.specialAnimationLayers[layer].isDefault = true;
+                        }
+
+                        //SDK.baseAnimationLayers[layer].animatorController = controller;
+
+                        GUILayout.EndScrollView();
+                        //AssetDatabase.Refresh();
+                    }
+                    break;
                 }
-            }
-
-            if (GUILayout.Button("Reset"))
-            {
-                SDK.baseAnimationLayers[layer].animatorController = null;
-                SDK.baseAnimationLayers[layer].isDefault = true;
-            }
-
-            if (GUILayout.Button("Delete Controller"))
-            {
-                AssetDatabase.DeleteAsset(AssetDatabase.GetAssetPath(controller));
-                SDK.baseAnimationLayers[layer].animatorController = null;
-                SDK.baseAnimationLayers[layer].isDefault = true;
-            }
-
-            GUILayout.EndScrollView();
         }
+        
     }
 
     private AnimatorController CreateController(GameObject avatar, string type)
@@ -246,6 +418,12 @@ public class Yelby_Environment : EditorWindow
                 return GenerateController(avatar.name, type, path, avatar);
             case "fx":
                 return GenerateController(avatar.name, type, path, avatar);
+            case "sitting":
+                return GenerateController(avatar.name, type, path, avatar);
+            case "tpose":
+                return GenerateController(avatar.name, type, path, avatar);
+            case "ikpose":
+                return GenerateController(avatar.name, type, path, avatar);
             default:
                 Debug.Log("NO controller");
                 break;
@@ -258,6 +436,122 @@ public class Yelby_Environment : EditorWindow
         AnimatorControllerLayer[] layers = controller.layers;
         switch (type)
         {
+            case "base":
+                {
+                    controller.AddParameter("VelocityX", AnimatorControllerParameterType.Float);
+                    controller.AddParameter("VelocityY", AnimatorControllerParameterType.Float);
+                    controller.AddParameter("VelocityZ", AnimatorControllerParameterType.Float);
+                    controller.AddParameter("AngularY", AnimatorControllerParameterType.Float);
+                    controller.AddParameter("Grounded", AnimatorControllerParameterType.Bool);
+                    controller.AddParameter("Upright", AnimatorControllerParameterType.Float);
+                    controller.AddParameter("Seated", AnimatorControllerParameterType.Bool);
+                    controller.AddParameter("AFK", AnimatorControllerParameterType.Bool);
+                    controller.AddParameter("TrackingType", AnimatorControllerParameterType.Int);
+
+                    if (layers.Length == 0)
+                        controller.AddLayer("Locomotion");
+                    layers = controller.layers;
+                    AssetDatabase.Refresh();
+
+                    List<AnimatorState> statesList = new List<AnimatorState>();
+                    layers = controller.layers;
+                    var index = LayerIndex(layers, "Locomotion");
+                    var selectedLayer = layers[index];
+                    var states = layers[index].stateMachine;
+                    var location = new Vector3(0, 0);
+                    states.entryPosition = location;
+                    location[1] += 50;
+                    states.anyStatePosition = location;
+                    location[1] += 50;
+                    states.exitPosition = location;
+                    controller.layers = layers;
+
+                    location[0] = 200;
+                    location[1] = 0;
+                    /*Standing*/
+                    string path = "Assets/VRCSDK/Examples3/Animation/BlendTrees/";
+                    BlendTree animation = AssetDatabase.LoadAssetAtPath(path + "vrc_StandingLocomotion" + ".asset", typeof(BlendTree)) as BlendTree;
+                    AnimatorState state = createState("Standing", states, location);
+                    //state.name = "Standing";
+                    state.motion = animation;
+                    statesList.Add(state);
+                    //CreateBlendTree();
+
+                    /*Crouching*/
+                    location[1] += 50;
+                    animation = AssetDatabase.LoadAssetAtPath(path + "vrc_CrouchingLocomotion" + ".asset", typeof(BlendTree)) as BlendTree;
+                    state = createState("Crouching", states, location);
+                    state.motion = animation;
+                    statesList.Add(state);
+
+                    /*Prone*/
+                    location[1] += 50;
+                    animation = AssetDatabase.LoadAssetAtPath(path + "vrc_ProneLocomotion" + ".asset", typeof(BlendTree)) as BlendTree;
+                    state = createState("Prone", states, location);
+                    state.motion = animation;
+                    statesList.Add(state);
+
+                    /*SubState*/
+                    location[0] += 250;
+                    location[1] = 0;
+                    var jumpAndFall = states.AddStateMachine("JumpAndFall", location);
+                    jumpAndFall = FillController(jumpAndFall, jumpAndFall.name, statesList);
+
+                    for (int i = 0; i < statesList.Count; i++)
+                    {
+                        DoTransition(statesList[i], statesList, layers[0], type);
+                    }
+
+                    AssetDatabase.Refresh();
+
+                    break;
+                }
+            case "additive":
+                {
+                    controller.AddParameter("Upright", AnimatorControllerParameterType.Int);
+                    controller.AddParameter("TrackingType", AnimatorControllerParameterType.Int);
+
+                    if (layers.Length == 0)
+                        controller.AddLayer("Idle");
+
+                    layers = controller.layers;
+                    AvatarMask mask = AssetDatabase.LoadAssetAtPath("Assets/VRCSDK/Examples3/Animation/Masks/vrc_MusclesOnly.mask", typeof(AvatarMask)) as AvatarMask;
+                    layers[0].avatarMask = mask;
+                    layers[0].blendingMode = AnimatorLayerBlendingMode.Additive;
+                    controller.layers = layers;
+                    AssetDatabase.Refresh();
+
+                    List<AnimatorState> statesList = new List<AnimatorState>();
+                    layers = controller.layers;
+                    var index = LayerIndex(layers, "Left Hand");
+                    var selectedLayer = layers[index];
+                    var states = layers[index].stateMachine;
+                    var location = new Vector3(0, 0);
+                    states.entryPosition = location;
+                    location[1] += 50;
+                    states.anyStatePosition = location;
+                    location[1] += 50;
+                    states.exitPosition = location;
+                    controller.layers = layers;
+
+                    /*Upright Idle*/
+                    location[0] = 200;
+                    location[1] = 0;
+                    string path = "Assets/VRCSDK/Examples3/Animation/ProxyAnim/";
+                    AnimatorState state = createState(AssetDatabase.LoadAssetAtPath(path + "proxy_idle" + ".anim", typeof(Motion)) as Motion, states, location);
+                    state.name = "Upright Idle";
+                    statesList.Add(state);
+
+                    location[1] += 50;
+                    statesList.Add(createState("Empty", states, location));
+
+                    createTransition(statesList[0], statesList[1], false, 0.0f, AnimatorConditionMode.Equals, 6, "TrackingType");
+                    createTransition(statesList[1], statesList[0], false, 0.0f, AnimatorConditionMode.NotEqual, 6, "TrackingType");
+
+                    AssetDatabase.Refresh();
+
+                    break;
+                }
             case "gesture":
                 {
                     controller.AddParameter("GestureLeft", AnimatorControllerParameterType.Int);
@@ -605,6 +899,8 @@ public class Yelby_Environment : EditorWindow
                         DoTransition(animatorStateList[i], animatorStateList, layers[0], type);
                     }
 
+                    AssetDatabase.Refresh();
+
                     break;
                 }
             case "fx":
@@ -716,15 +1012,356 @@ public class Yelby_Environment : EditorWindow
                     {
                         createTransition(states, statesList[i], false, 0, AnimatorConditionMode.Equals, i, "GestureRight");
                     }
+
+                    AssetDatabase.Refresh();
+
+                    break;
+                }
+            case "sitting":
+                {
+                    if (layers.Length == 0)
+                        controller.AddLayer("Utility layer");
+                    layers = controller.layers;
+                    AssetDatabase.Refresh();
+
+                    List<AnimatorState> statesList = new List<AnimatorState>();
+                    layers = controller.layers;
+                    var index = LayerIndex(layers, "Utility layer");
+                    var selectedLayer = layers[index];
+                    var states = layers[index].stateMachine;
+                    var location = new Vector3(0, 0);
+                    states.anyStatePosition = location;
+                    location[1] += 50;
+                    states.entryPosition = location;
+                    controller.layers = layers;
+
+                    string path = "Assets/VRCSDK/Examples3/Animation/ProxyAnim/";
+
+                    /*VersionSwitch*/
+                    location = new Vector3(200, 50);
+                    Motion animation = AssetDatabase.LoadAssetAtPath(path + "proxy_stand_still" + ".anim", typeof(Motion)) as Motion;
+                    AnimatorState animationState = createState(animation, states, location);
+                    animationState.name = "VersionSwitch";
+                    statesList.Add(animationState);
+
+                    /*V2Seated*/
+                    location[0] += 250;
+                    animation = AssetDatabase.LoadAssetAtPath(path + "proxy_sit" + ".anim", typeof(Motion)) as Motion;
+                    animationState = createState(animation, states, location);
+                    animationState.name = "V2Seated";
+                    statesList.Add(animationState);
+
+                    /*DisableTracking*/
+                    location[0] -= 250;
+                    location[1] += 50;
+                    animation = AssetDatabase.LoadAssetAtPath(path + "proxy_stand_still" + ".anim", typeof(Motion)) as Motion;
+                    animationState = createState(animation, states, location);
+                    animationState.name = "DisableTracking";
+
+                        /*Tracking Control*/
+                        var animatorTrackingControl = animationState.AddStateMachineBehaviour<VRC.SDK3.Avatars.Components.VRCAnimatorTrackingControl>();
+                        var tNoChange = VRC.SDKBase.VRC_AnimatorTrackingControl.TrackingType.NoChange;
+                        var tTracking = VRC.SDKBase.VRC_AnimatorTrackingControl.TrackingType.Tracking;
+                        var tAnimation = VRC.SDKBase.VRC_AnimatorTrackingControl.TrackingType.Animation;
+                        animatorTrackingControl.trackingHead = tAnimation;
+                        animatorTrackingControl.trackingLeftHand = tAnimation;
+                        animatorTrackingControl.trackingRightHand = tAnimation;
+                        animatorTrackingControl.trackingHip = tAnimation;
+                        animatorTrackingControl.trackingLeftFoot = tAnimation;
+                        animatorTrackingControl.trackingRightFoot = tAnimation;
+                        animatorTrackingControl.trackingLeftFingers = tTracking;
+                        animatorTrackingControl.trackingRightFingers = tTracking;
+                        animatorTrackingControl.trackingEyes = tTracking;
+                        animatorTrackingControl.trackingMouth = tTracking;
+                    statesList.Add(animationState);
+
+                    /*PoseSpace*/
+                    animation = AssetDatabase.LoadAssetAtPath(path + "proxy_sit" + ".anim", typeof(Motion)) as Motion;
+                    location[0] += 250;
+                    animationState = createState(animation, states, location);
+                    animationState.name = "PoseSpace";
+
+                        /*Tracking Control*/
+                        var tempPoseSpace = animationState.AddStateMachineBehaviour<VRC.SDK3.Avatars.Components.VRCAnimatorTemporaryPoseSpace>();
+                        tempPoseSpace.enterPoseSpace = true;
+                        tempPoseSpace.fixedDelay = true;
+                        tempPoseSpace.delayTime = 0.51f;
+                    statesList.Add(animationState);
+
+                    /*UpperBodyTracked*/
+                    location[0] += 250;
+                    animationState = createState(animation, states, location);
+                    animationState.name = "UpperBodyTracked";
+
+                        /*Tracking Control*/
+                        animatorTrackingControl = animationState.AddStateMachineBehaviour<VRC.SDK3.Avatars.Components.VRCAnimatorTrackingControl>();
+                        animatorTrackingControl.trackingHead = tTracking;
+                        animatorTrackingControl.trackingLeftHand = tTracking;
+                        animatorTrackingControl.trackingRightHand = tTracking;
+                        animatorTrackingControl.trackingHip = tNoChange;
+                        animatorTrackingControl.trackingLeftFoot = tNoChange;
+                        animatorTrackingControl.trackingRightFoot = tNoChange;
+                        animatorTrackingControl.trackingLeftFingers = tNoChange;
+                        animatorTrackingControl.trackingRightFingers = tNoChange;
+                        animatorTrackingControl.trackingEyes = tNoChange;
+                        animatorTrackingControl.trackingMouth = tNoChange;
+                    statesList.Add(animationState);
+
+                    /*RestoreTracking*/
+                    location[0] += 250;
+                    animation = AssetDatabase.LoadAssetAtPath(path + "proxy_stand_still" + ".anim", typeof(Motion)) as Motion;
+                    animationState = createState(animation, states, location);
+                    animationState.name = "RestoreTracking";
+
+                        /*Tracking Control*/
+                        animatorTrackingControl = animationState.AddStateMachineBehaviour<VRC.SDK3.Avatars.Components.VRCAnimatorTrackingControl>();
+                        animatorTrackingControl.trackingHead = tTracking;
+                        animatorTrackingControl.trackingLeftHand = tTracking;
+                        animatorTrackingControl.trackingRightHand = tTracking;
+                        animatorTrackingControl.trackingHip = tTracking;
+                        animatorTrackingControl.trackingLeftFoot = tTracking;
+                        animatorTrackingControl.trackingRightFoot = tTracking;
+                        animatorTrackingControl.trackingLeftFingers = tNoChange;
+                        animatorTrackingControl.trackingRightFingers = tNoChange;
+                        animatorTrackingControl.trackingEyes = tNoChange;
+                        animatorTrackingControl.trackingMouth = tNoChange;
+
+                        /*Tracking Control*/
+                        tempPoseSpace = animationState.AddStateMachineBehaviour<VRC.SDK3.Avatars.Components.VRCAnimatorTemporaryPoseSpace>();
+                        tempPoseSpace.enterPoseSpace = false;
+                        tempPoseSpace.fixedDelay = true;
+                        tempPoseSpace.delayTime = 0.0f;
+                    statesList.Add(animationState);
+
+                    location[1] -= 50;
+                    states.exitPosition = location;
+
+                    for(int i = 0; i < statesList.Count; i++)
+                    {
+                        DoTransition(statesList[i], statesList, selectedLayer, type);
+                    }
+
+                    break;
+                }
+            case "tpose":
+                {
+                    if (layers.Length == 0)
+                        controller.AddLayer("Utility layer");
+                    layers = controller.layers;
+                    AssetDatabase.Refresh();
+
+                    layers = controller.layers;
+                    var index = LayerIndex(layers, "Utility Layer");
+                    var selectedLayer = layers[index];
+                    var states = layers[index].stateMachine;
+                    var location = new Vector3(0, 0);
+                    states.entryPosition = location;
+                    location[1] += 50;
+                    states.anyStatePosition = location;
+                    location[1] += 50;
+                    states.exitPosition = location;
+                    controller.layers = layers;
+                    string path = "Assets/VRCSDK/Examples3/Animation/ProxyAnim/";
+
+                    /*TPose*/
+                    location = new Vector3(200, 0);
+                    Motion animation = AssetDatabase.LoadAssetAtPath(path + "proxy_tpose" + ".anim", typeof(Motion)) as Motion;
+                    AnimatorState animationState = createState(animation, states, location);
+                    animationState.name = "TPose";
+                    break;
+                }
+            case "ikpose":
+                {
+                    if (layers.Length == 0)
+                        controller.AddLayer("Utility layer");
+                    layers = controller.layers;
+                    AssetDatabase.Refresh();
+
+                    layers = controller.layers;
+                    var index = LayerIndex(layers, "Utility Layer");
+                    var selectedLayer = layers[index];
+                    var states = layers[index].stateMachine;
+                    var location = new Vector3(0, 0);
+                    states.entryPosition = location;
+                    location[1] += 50;
+                    states.anyStatePosition = location;
+                    location[1] += 50;
+                    states.exitPosition = location;
+                    controller.layers = layers;
+                    string path = "Assets/VRCSDK/Examples3/Animation/ProxyAnim/";
+
+                    /*IK Pose*/
+                    location = new Vector3(200, 0);
+                    Motion animation = AssetDatabase.LoadAssetAtPath(path + "proxy_ikpose" + ".anim", typeof(Motion)) as Motion;
+                    AnimatorState animationState = createState(animation, states, location);
+                    animationState.name = "IK Pose";
                     break;
                 }
         }
+        AssetDatabase.SaveAssets();
+        AssetDatabase.Refresh();
     }
 
     private AnimatorStateMachine FillController(AnimatorStateMachine stateMachine, string type, List<AnimatorState> list)
     {
         switch(type)
         {
+            case "JumpAndFall":
+                {
+                    Vector3 location = new Vector3(0, 0);
+                    stateMachine.anyStatePosition = location;
+                    location[1] += 50;
+                    stateMachine.exitPosition = new Vector3(700, 50);
+                    stateMachine.entryPosition = location;
+                    location[0] -= 25;
+                    location[1] += 100;
+                    stateMachine.parentStateMachinePosition = location;
+
+                    /*Small Hop*/
+                    location = new Vector3(200, 50);
+                    Motion animation = AssetDatabase.LoadAssetAtPath("Assets/VRCSDK/Examples3/Animation/ProxyAnim/" + "proxy_fall_short" + ".anim", typeof(Motion)) as Motion;
+                    AnimatorState animationState = createState(animation, stateMachine, location);
+                    animationState.name = "SmallHop";
+
+                        /*Tracking Control*/
+                        var animatorTrackingControl = animationState.AddStateMachineBehaviour<VRC.SDK3.Avatars.Components.VRCAnimatorTrackingControl>();
+                        var tNoChange = VRC.SDKBase.VRC_AnimatorTrackingControl.TrackingType.NoChange;
+                        var tTracking = VRC.SDKBase.VRC_AnimatorTrackingControl.TrackingType.Tracking;
+                        var tAnimation = VRC.SDKBase.VRC_AnimatorTrackingControl.TrackingType.Animation;
+                        animatorTrackingControl.trackingHead = tTracking;
+                        animatorTrackingControl.trackingLeftHand = tTracking;
+                        animatorTrackingControl.trackingRightHand = tTracking;
+                        animatorTrackingControl.trackingHip = tTracking;
+                        animatorTrackingControl.trackingLeftFoot = tTracking;
+                        animatorTrackingControl.trackingRightFoot = tTracking;
+                        animatorTrackingControl.trackingLeftFingers = tNoChange;
+                        animatorTrackingControl.trackingRightFingers = tNoChange;
+                        animatorTrackingControl.trackingEyes = tNoChange;
+                        animatorTrackingControl.trackingMouth = tNoChange;
+                    list.Add(animationState);
+
+                    /*Short Fall*/
+                    location[1] += 100;
+                    animationState = createState(animation, stateMachine, location);
+                    animationState.name = "Short Fall";
+
+                        /*Tracking Control*/
+                        animatorTrackingControl = animationState.AddStateMachineBehaviour<VRC.SDK3.Avatars.Components.VRCAnimatorTrackingControl>();
+                        animatorTrackingControl.trackingHead = tTracking;
+                        animatorTrackingControl.trackingLeftHand = tTracking;
+                        animatorTrackingControl.trackingRightHand = tTracking;
+                        animatorTrackingControl.trackingHip = tAnimation;
+                        animatorTrackingControl.trackingLeftFoot = tAnimation;
+                        animatorTrackingControl.trackingRightFoot = tAnimation;
+                        animatorTrackingControl.trackingLeftFingers = tNoChange;
+                        animatorTrackingControl.trackingRightFingers = tNoChange;
+                        animatorTrackingControl.trackingEyes = tNoChange;
+                        animatorTrackingControl.trackingMouth = tNoChange;
+                    list.Add(animationState);
+
+                    /*RestoreToHop*/
+                    location[0] += 250;
+                    location[1] -= 50;
+                    animationState = createState(animation, stateMachine, location);
+                    animationState.name = "RestoreToHop";
+
+                        /*Tracking Control*/
+                        animatorTrackingControl = animationState.AddStateMachineBehaviour<VRC.SDK3.Avatars.Components.VRCAnimatorTrackingControl>();
+                        animatorTrackingControl.trackingHead = tTracking;
+                        animatorTrackingControl.trackingLeftHand = tTracking;
+                        animatorTrackingControl.trackingRightHand = tTracking;
+                        animatorTrackingControl.trackingHip = tTracking;
+                        animatorTrackingControl.trackingLeftFoot = tTracking;
+                        animatorTrackingControl.trackingRightFoot = tTracking;
+                        animatorTrackingControl.trackingLeftFingers = tNoChange;
+                        animatorTrackingControl.trackingRightFingers = tNoChange;
+                        animatorTrackingControl.trackingEyes = tNoChange;
+                        animatorTrackingControl.trackingMouth = tNoChange;
+                    list.Add(animationState);
+
+                    /*QuickLand*/
+                    location[1] += 100;
+                    animation = AssetDatabase.LoadAssetAtPath("Assets/VRCSDK/Examples3/Animation/ProxyAnim/" + "proxy_land_quick" + ".anim", typeof(Motion)) as Motion;
+                    animationState = createState(animation, stateMachine, location);
+                    animationState.name = "QuickLand";
+
+                        /*Tracking Control*/
+                        animatorTrackingControl = animationState.AddStateMachineBehaviour<VRC.SDK3.Avatars.Components.VRCAnimatorTrackingControl>();
+                        animatorTrackingControl.trackingHead = tAnimation;
+                        animatorTrackingControl.trackingLeftHand = tNoChange;
+                        animatorTrackingControl.trackingRightHand = tNoChange;
+                        animatorTrackingControl.trackingHip = tAnimation;
+                        animatorTrackingControl.trackingLeftFoot = tAnimation;
+                        animatorTrackingControl.trackingRightFoot = tAnimation;
+                        animatorTrackingControl.trackingLeftFingers = tNoChange;
+                        animatorTrackingControl.trackingRightFingers = tNoChange;
+                        animatorTrackingControl.trackingEyes = tNoChange;
+                        animatorTrackingControl.trackingMouth = tNoChange;
+                    list.Add(animationState);
+
+                    /*LongFall*/
+                    location[0] -= 250;
+                    location[1] += 50;
+                    animation = AssetDatabase.LoadAssetAtPath("Assets/VRCSDK/Examples3/Animation/ProxyAnim/" + "proxy_fall_long" + ".anim", typeof(Motion)) as Motion;
+                    animationState = createState(animation, stateMachine, location);
+                    animationState.name = "LongFall";
+
+                        /*Tracking Control*/
+                        animatorTrackingControl = animationState.AddStateMachineBehaviour<VRC.SDK3.Avatars.Components.VRCAnimatorTrackingControl>();
+                        animatorTrackingControl.trackingHead = tAnimation;
+                        animatorTrackingControl.trackingLeftHand = tAnimation;
+                        animatorTrackingControl.trackingRightHand = tAnimation;
+                        animatorTrackingControl.trackingHip = tAnimation;
+                        animatorTrackingControl.trackingLeftFoot = tAnimation;
+                        animatorTrackingControl.trackingRightFoot = tAnimation;
+                        animatorTrackingControl.trackingLeftFingers = tNoChange;
+                        animatorTrackingControl.trackingRightFingers = tNoChange;
+                        animatorTrackingControl.trackingEyes = tNoChange;
+                        animatorTrackingControl.trackingMouth = tNoChange;
+                    list.Add(animationState);
+
+                    /*HardLand*/
+                    location[0] += 250*2;
+                    animation = AssetDatabase.LoadAssetAtPath("Assets/VRCSDK/Examples3/Animation/ProxyAnim/" + "proxy_landing" + ".anim", typeof(Motion)) as Motion;
+                    animationState = createState(animation, stateMachine, location);
+                    animationState.name = "HardLand";
+
+                        /*Tracking Control*/
+                        animatorTrackingControl = animationState.AddStateMachineBehaviour<VRC.SDK3.Avatars.Components.VRCAnimatorTrackingControl>();
+                        animatorTrackingControl.trackingHead = tAnimation;
+                        animatorTrackingControl.trackingLeftHand = tNoChange;
+                        animatorTrackingControl.trackingRightHand = tNoChange;
+                        animatorTrackingControl.trackingHip = tAnimation;
+                        animatorTrackingControl.trackingLeftFoot = tAnimation;
+                        animatorTrackingControl.trackingRightFoot = tAnimation;
+                        animatorTrackingControl.trackingLeftFingers = tNoChange;
+                        animatorTrackingControl.trackingRightFingers = tNoChange;
+                        animatorTrackingControl.trackingEyes = tNoChange;
+                        animatorTrackingControl.trackingMouth = tNoChange;
+                    list.Add(animationState);
+
+                    /*RestoreTracking*/
+                    location[1] -= 100;
+                    animation = AssetDatabase.LoadAssetAtPath("Assets/VRCSDK/Examples3/Animation/ProxyAnim/" + "proxy_stand_still" + ".anim", typeof(Motion)) as Motion;
+                    animationState = createState(animation, stateMachine, location);
+                    animationState.name = "RestoreTracking";
+
+                        /*Tracking Control*/
+                        animatorTrackingControl = animationState.AddStateMachineBehaviour<VRC.SDK3.Avatars.Components.VRCAnimatorTrackingControl>();
+                        animatorTrackingControl.trackingHead = tTracking;
+                        animatorTrackingControl.trackingLeftHand = tTracking;
+                        animatorTrackingControl.trackingRightHand = tTracking;
+                        animatorTrackingControl.trackingHip = tTracking;
+                        animatorTrackingControl.trackingLeftFoot = tTracking;
+                        animatorTrackingControl.trackingRightFoot = tTracking;
+                        animatorTrackingControl.trackingLeftFingers = tNoChange;
+                        animatorTrackingControl.trackingRightFingers = tNoChange;
+                        animatorTrackingControl.trackingEyes = tNoChange;
+                        animatorTrackingControl.trackingMouth = tNoChange;
+                    list.Add(animationState);
+
+                    break;
+                }
             case "FullBodyAnimations":
                 {
                     Vector3 location = new Vector3(0, 0);
@@ -802,6 +1439,185 @@ public class Yelby_Environment : EditorWindow
     {
         switch(type)
         {
+            case "base":
+                {
+                    switch (state.name)
+                    {
+                        case "Standing":
+                            {
+                                for (int i = 0; i < list.Count; i++)
+                                {
+                                    if (list[i].name == "Crouching")
+                                    {
+                                        createTransition(state, list[i], false, 0.5f, AnimatorConditionMode.Less, 0.68f, "Upright");
+                                    }
+                                    else if (list[i].name == "SmallHop")
+                                    {
+                                        AnimatorStateTransition transition = state.AddTransition(list[i]);
+                                        transition.hasExitTime = false;
+                                        transition.duration = 0.1f;
+                                        transition.AddCondition(AnimatorConditionMode.IfNot, 0, "Grounded");
+                                        transition.AddCondition(AnimatorConditionMode.Greater, -2.001f, "VelocityY");
+                                        transition.AddCondition(AnimatorConditionMode.IfNot, 0, "Seated");
+                                        transition.AddCondition(AnimatorConditionMode.IfNot, 0, "AFK");
+                                    }
+                                    else if (list[i].name == "Short Fall")
+                                    {
+                                        AnimatorStateTransition transition = state.AddTransition(list[i]);
+                                        transition.hasExitTime = false;
+                                        transition.duration = 0.1f;
+                                        transition.AddCondition(AnimatorConditionMode.IfNot, 0, "Grounded");
+                                        transition.AddCondition(AnimatorConditionMode.Greater, -4f, "VelocityY");
+                                        transition.AddCondition(AnimatorConditionMode.Less, -2f, "VelocityY");
+                                        transition.AddCondition(AnimatorConditionMode.IfNot, 0, "Seated");
+                                        transition.AddCondition(AnimatorConditionMode.IfNot, 0, "AFK");
+                                    }
+                                    else if (list[i].name == "LongFall")
+                                    {
+                                        AnimatorStateTransition transition = state.AddTransition(list[i]);
+                                        transition.hasExitTime = false;
+                                        transition.duration = 0.2f;
+                                        transition.AddCondition(AnimatorConditionMode.IfNot, 0, "Grounded");
+                                        transition.AddCondition(AnimatorConditionMode.Less, -20f, "VelocityY");
+                                        transition.AddCondition(AnimatorConditionMode.IfNot, 0, "Seated");
+                                        transition.AddCondition(AnimatorConditionMode.IfNot, 0, "AFK");
+                                    }
+                                }
+                                break;
+                            }
+                        case "Crouching":
+                            {
+                                for (int i = 0; i < list.Count; i++)
+                                {
+                                    if (list[i].name == "Prone")
+                                    {
+                                        createTransition(state, list[i], false, 0.5f, AnimatorConditionMode.Less, 0.41f, "Upright");
+                                    }
+                                    else if (list[i].name == "Standing")
+                                    {
+                                        createTransition(state, list[i], false, 0.2f, AnimatorConditionMode.Greater, 0.7f, "Upright");
+                                    }
+                                }
+                                break;
+                            }
+                        case "Prone":
+                            {
+                                for (int i = 0; i < list.Count; i++)
+                                {
+                                    if (list[i].name == "Crouching")
+                                    {
+                                        createTransition(state, list[i], false, 0.5f, AnimatorConditionMode.Greater, 0.43f, "Upright");
+                                    }
+                                }
+                                break;
+                            }
+                            /*SubStates*/
+                        case "SmallHop":
+                            {
+                                createTransition(state, false, 0.25f, AnimatorConditionMode.If, 0, "Grounded");
+                                createTransition(state, false, 0.25f, AnimatorConditionMode.If, 0, "Seated");
+                                createTransition(state, false, 0.25f, AnimatorConditionMode.If, 0, "AFK");
+                                for (int i = 0; i < list.Count; i++)
+                                {
+                                    if (list[i].name == "Short Fall")
+                                    {
+                                        createTransition(state, list[i], false, 0.0f, AnimatorConditionMode.Less, -2f, "VelocityY");
+                                        break;
+                                    }
+                                }
+                                break;
+                            }
+                        case "Short Fall":
+                            {
+                                for (int i = 0; i < list.Count; i++)
+                                {
+                                    if (list[i].name == "RestoreTracking")
+                                    {
+                                        createTransition(state, list[i], false, 0.1f, AnimatorConditionMode.If, 0, "Seated");
+                                        createTransition(state, list[i], false, 0.1f, AnimatorConditionMode.If, 0, "AFK");
+                                    }
+                                    else if (list[i].name == "LongFall")
+                                    {
+                                        createTransition(state, list[i], false, 0.0f, AnimatorConditionMode.Less, -20f, "VelocityY");
+                                    }
+                                    else if (list[i].name == "RestoreToHop")
+                                    {
+                                        createTransition(state, list[i], false, 0.0f, AnimatorConditionMode.Greater, 0.01f, "VelocityY");
+                                    }
+                                    else if (list[i].name == "QuickLand")
+                                    {
+                                        createTransition(state, list[i], false, 0.0f, AnimatorConditionMode.If, 0, "Grounded");
+                                    }
+                                }
+                                break;
+                            }
+                        case "LongFall":
+                            {
+                                for (int i = 0; i < list.Count; i++)
+                                {
+                                    if (list[i].name == "HardLand")
+                                    {
+                                        createTransition(state, list[i], false, 0.0f, AnimatorConditionMode.If, 0, "Grounded");
+                                    }
+                                    else if (list[i].name == "Short Fall")
+                                    {
+                                        createTransition(state, list[i], false, 0.0f, AnimatorConditionMode.Greater, -20f, "VelocityY");
+                                    }
+                                    else if (list[i].name == "RestoreTracking")
+                                    {
+                                        createTransition(state, list[i], false, 0.1f, AnimatorConditionMode.If, 0, "AFK");
+                                        createTransition(state, list[i], false, 0.1f, AnimatorConditionMode.If, 0, "Seated");
+                                    }
+                                }
+                                break;
+                            }
+                        case "RestoreToHop":
+                            {
+                                for (int i = 0; i < list.Count; i++)
+                                {
+                                    if (list[i].name == "Short Fall")
+                                    {
+                                        createTransition(state, list[i], false, 0.0f, AnimatorConditionMode.Less, -2.0f, "VelocityY");
+                                        break;
+                                    }
+                                }
+                                createTransition(state, false, 0.25f, AnimatorConditionMode.If, 0, "AFK");
+                                createTransition(state, false, 0.25f, AnimatorConditionMode.If, 0, "Seated");
+                                createTransition(state, false, 0.25f, AnimatorConditionMode.If, 0, "Grounded");
+                                break;
+                            }
+                        case "QuickLand":
+                            {
+                                for (int i = 0; i < list.Count; i++)
+                                {
+                                    if (list[i].name == "RestoreTracking")
+                                    {
+                                        createTransition(state, list[i], true, 1.0f, 0.1f);
+                                        break;
+                                    }
+                                }
+                                break;
+                            }
+                        case "RestoreTracking":
+                            {
+                                createTransition(state, true, 0.0f, 0.25f);
+                                break;
+                            }
+                        case "HardLand":
+                            {
+                                for (int i = 0; i < list.Count; i++)
+                                {
+                                    if (list[i].name == "RestoreTracking")
+                                    {
+                                        createTransition(state, list[i], true, 0.6f, 0.2f);
+                                        break;
+                                    }
+                                }
+                                break;
+                            }
+                    }
+                    break;
+                }
             case "action":
                 {
                     switch(state.name)
@@ -963,10 +1779,139 @@ public class Yelby_Environment : EditorWindow
                     }
                     break;
                 }
+            case "sitting":
+                {
+                    switch(state.name)
+                    {
+                        case "VersionSwitch":
+                            {
+                                for(int i = 0; i < list.Count; i++)
+                                {
+                                    if(list[i].name == "V2Seated")
+                                    {
+                                        createTransition(state, list[i], false, 0.2f, AnimatorConditionMode.Less, 3, "AvatarVersion", AnimatorConditionMode.If, 0, "Seated");
+                                    }
+                                    else if (list[i].name == "DisableTracking")
+                                    {
+                                        createTransition(state, list[i], false, 0.2f, AnimatorConditionMode.Greater, 2, "AvatarVersion", AnimatorConditionMode.If, 0, "Seated");
+                                    }
+                                }
+                                break;
+                            }
+                        case "V2Seated":
+                            {
+                                createTransition(state, false, 0.2f, AnimatorConditionMode.IfNot, 0, "Seated");
+                                break;
+                            }
+                        case "DisableTracking":
+                            {
+                                for (int i = 0; i < list.Count; i++)
+                                {
+                                    if (list[i].name == "PoseSpace")
+                                    {
+                                        createTransition(state, list[i], true, 1, 0.5f);
+                                    }
+                                }
+                                break;
+                            }
+                        case "PoseSpace":
+                            {
+                                for (int i = 0; i < list.Count; i++)
+                                {
+                                    if (list[i].name == "UpperBodyTracked")
+                                    {
+                                        createTransition(state, list[i], true, 1, 0.2f);
+                                    }
+                                }
+                                break;
+                            }
+                        case "UpperBodyTracked":
+                            {
+                                for (int i = 0; i < list.Count; i++)
+                                {
+                                    if (list[i].name == "RestoreTracking")
+                                    {
+                                        createTransition(state, list[i], false, 0, AnimatorConditionMode.IfNot, 0, "Seated");
+                                    }
+                                }
+                                break;
+                            }
+                        case "RestoreTracking":
+                            {
+                                createTransition(state, true, 1, 0.2f);
+                                break;
+                            }
+                    }
+                    break;
+                }
         }
     }
 
     /*~~~~~Helper Methods~~~~~*/
+    private void CreateBlendTree()
+    {
+        string filePath = "Assets/Yelby/Programs/Yelby Environment";
+        BlendTree tree = new BlendTree();
+        tree.blendParameter = "VelocityX";
+        tree.blendParameterY = "VelocityZ";
+        tree.blendType = BlendTreeType.FreeformDirectional2D;
+
+        string path = "Assets/VRCSDK/Examples3/Animation/ProxyAnim/";
+        Motion animation = AssetDatabase.LoadAssetAtPath(path + "proxy_sprint_forward" + ".anim", typeof(Motion)) as Motion;
+        tree.AddChild(animation, new Vector2(0, 5.96f));
+
+        animation = AssetDatabase.LoadAssetAtPath(path + "proxy_run_forward" + ".anim", typeof(Motion)) as Motion;
+        tree.AddChild(animation, new Vector2(0, 3.4f));
+
+        Motion[] animationList = { AssetDatabase.LoadAssetAtPath(path + "proxy_sprint_forward" + ".anim", typeof(Motion)) as Motion,
+                                   AssetDatabase.LoadAssetAtPath(path + "proxy_run_forward" + ".anim", typeof(Motion)) as Motion,
+                                   AssetDatabase.LoadAssetAtPath(path + "proxy_walk_forward" + ".anim", typeof(Motion)) as Motion,
+                                   AssetDatabase.LoadAssetAtPath(path + "proxy_stand_still" + ".anim", typeof(Motion)) as Motion,
+                                   AssetDatabase.LoadAssetAtPath(path + "proxy_walk_backward" + ".anim", typeof(Motion)) as Motion,
+                                   AssetDatabase.LoadAssetAtPath(path + "proxy_run_backward" + ".anim", typeof(Motion)) as Motion,
+                                   AssetDatabase.LoadAssetAtPath(path + "proxy_run_strafe_right" + ".anim", typeof(Motion)) as Motion,
+                                   AssetDatabase.LoadAssetAtPath(path + "proxy_strafe_right" + ".anim", typeof(Motion)) as Motion,
+                                   AssetDatabase.LoadAssetAtPath(path + "proxy_strafe_right" + ".anim", typeof(Motion)) as Motion,
+                                   AssetDatabase.LoadAssetAtPath(path + "proxy_run_strafe_right" + ".anim", typeof(Motion)) as Motion,
+                                   AssetDatabase.LoadAssetAtPath(path + "proxy_strafe_right_135" + ".anim", typeof(Motion)) as Motion,
+                                   AssetDatabase.LoadAssetAtPath(path + "proxy_strafe_right_135" + ".anim", typeof(Motion)) as Motion,
+                                   AssetDatabase.LoadAssetAtPath(path + "proxy_strafe_right_45" + ".anim", typeof(Motion)) as Motion,
+                                   AssetDatabase.LoadAssetAtPath(path + "proxy_strafe_right_45" + ".anim", typeof(Motion)) as Motion,
+                                   AssetDatabase.LoadAssetAtPath(path + "proxy_run_strafe_right_45" + ".anim", typeof(Motion)) as Motion,
+                                   AssetDatabase.LoadAssetAtPath(path + "proxy_run_strafe_right_45" + ".anim", typeof(Motion)) as Motion,
+                                   AssetDatabase.LoadAssetAtPath(path + "proxy_run_strafe_right_135" + ".anim", typeof(Motion)) as Motion,
+                                   AssetDatabase.LoadAssetAtPath(path + "proxy_run_strafe_right_135" + ".anim", typeof(Motion)) as Motion};
+        Vector2[] vectorList = {    new Vector2(0f, 5.96f),
+                                    new Vector2(0f, 3.4f),
+                                    new Vector2(0f, 1.56f),
+                                    new Vector2(0f, 0f),
+                                    new Vector2(0f, -1.56f),
+                                    new Vector2(0f, -2.1f),
+                                    new Vector2(-3f, 0f),
+                                    new Vector2(-1.56f, 0f),
+                                    new Vector2(1.56f, 0f),
+                                    new Vector2(3f, 0f),
+                                    new Vector2(-1.1f, -1.1f),
+                                    new Vector2(1.1f, -1.1f),
+                                    new Vector2(-1.1f, 1.1f),
+                                    new Vector2(1.1f, 1.1f),
+                                    new Vector2(-2.44f, 2.44f),
+                                    new Vector2(2.4f, 2.44f),
+                                    new Vector2(-1.5f, -1.5f),
+                                    new Vector2(1.5f, -1.5f)};
+
+        for(int i = 0; i < vectorList.Length; i++)
+        {
+            tree.AddChild(animationList[i], vectorList[i]);
+            if(i == 3)
+            {
+                tree.children[i].timeScale = 0.166f;
+            }
+        }
+
+        AssetDatabase.CreateAsset(tree, filePath + "/" + "standing" + ".controller");
+    }
+
     private void CreateFolder(string path, string newFolder)
     {
         if (AssetDatabase.IsValidFolder(path))
@@ -992,6 +1937,7 @@ public class Yelby_Environment : EditorWindow
 
         FillController(controller, type, avatar);
 
+        AssetDatabase.SaveAssets();
         AssetDatabase.Refresh();
 
         return controller;
@@ -1185,6 +2131,22 @@ public class Yelby_Environment : EditorWindow
         return stateMachine.states[i].state;
     }
 
+    private AnimatorState createState(BlendTree motion, AnimatorStateMachine stateMachine, Vector3 location)
+    {
+        stateMachine.AddState(motion.name, location);
+        int i = 0;
+        for (i = 0; i < stateMachine.states.Length; i++)
+        {
+            if (stateMachine.states[i].state.name == motion.name)
+            {
+                stateMachine.states[i].state.motion = motion;
+                stateMachine.states[i].state.writeDefaultValues = false;
+                break;
+            }
+        }
+        return stateMachine.states[i].state;
+    }
+
     private AnimatorState createState(string title, AnimatorStateMachine stateMachine, Vector3 location)
     {
         stateMachine.AddState(title, location);
@@ -1252,6 +2214,14 @@ public class Yelby_Environment : EditorWindow
         tranExit.hasExitTime = exitTime;
         tranExit.duration = duration;
         tranExit.AddCondition(mode, threshold, obj.name);
+    }
+
+    private void createTransition(AnimatorState stateToExit, bool exitTime, float duration, AnimatorConditionMode mode, float threshold, string parameter)
+    {
+        AnimatorStateTransition tranExit = stateToExit.AddExitTransition();
+        tranExit.hasExitTime = exitTime;
+        tranExit.duration = duration;
+        tranExit.AddCondition(mode, threshold, parameter);
     }
 
     private void createTransition(AnimatorState stateToExit, bool exitTime, float timeToExit, float duration)
