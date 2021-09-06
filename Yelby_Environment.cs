@@ -258,6 +258,118 @@ public class Yelby_Environment : EditorWindow
         AnimatorControllerLayer[] layers = controller.layers;
         switch (type)
         {
+            case "gesture":
+                {
+                    controller.AddParameter("GestureLeft", AnimatorControllerParameterType.Int);
+                    controller.AddParameter("GestureLeftWeight", AnimatorControllerParameterType.Int);
+                    controller.AddParameter("GestureRight", AnimatorControllerParameterType.Int);
+                    controller.AddParameter("GestureRightWeight", AnimatorControllerParameterType.Int);
+
+                    if (layers.Length == 0)
+                        controller.AddLayer("AllParts");
+
+                    AssetDatabase.Refresh();
+
+                    layers = controller.layers;
+                    AvatarMask mask = AssetDatabase.LoadAssetAtPath("Assets/VRCSDK/Examples3/Animation/Masks/vrc_HandsOnly.mask", typeof(AvatarMask)) as AvatarMask;
+                    layers[0].avatarMask = mask;
+                    controller.layers = layers;
+
+                    /*Left Hand*/
+                    controller.AddLayer("Left Hand");
+                    layers = controller.layers;
+                    var index = LayerIndex(layers, "Left Hand");
+                    var selectedLayer = layers[index];
+                    var states = layers[index].stateMachine;
+                    var location = new Vector3(0, 0);
+                    states.entryPosition = location;
+                    location[1] += 50;
+                    states.anyStatePosition = location;
+                    location[1] += 50;
+                    states.exitPosition = location;
+                    selectedLayer.defaultWeight = 1;
+                    controller.layers = layers;
+
+                    mask = AssetDatabase.LoadAssetAtPath("Assets/VRCSDK/Examples3/Animation/Masks/vrc_Hand Left.mask", typeof(AvatarMask)) as AvatarMask;
+                    if (mask == null)
+                    {
+                        Debug.LogError("Mask doesn't exit at location");
+                        return;
+                    }
+                    selectedLayer.avatarMask = mask;
+
+
+                    location = new Vector3(200, 0);
+                    List<AnimatorState> statesList = new List<AnimatorState>();
+
+                    string path = "Assets/VRCSDK/Examples3/Animation/ProxyAnim/";
+                    string[] poses = {"Idle", "First", "Open", "Point", "Peace", "Rock n Roll", "Gun", "Thumbs up" };
+                    string[] animations = { "proxy_hands_idle",
+                                            "proxy_hands_fist",
+                                            "proxy_hands_open",
+                                            "proxy_hands_point",
+                                            "proxy_hands_peace",
+                                            "proxy_hands_rock",
+                                            "proxy_hands_gun",
+                                            "proxy_hands_thumbs_up" };
+
+                    location[1] = 0;
+                    for (int i = 0; i < poses.Length; i++)
+                    {
+                        AnimatorState state = createState(AssetDatabase.LoadAssetAtPath(path + animations[i] + ".anim", typeof(Motion)) as Motion, states, location);
+                        state.name = poses[i];
+                        statesList.Add(state);
+                        location[1] += 50;
+                    }
+
+                    for (int i = 0; i < statesList.Count; i++)
+                    {
+                        createTransition(states, statesList[i], false, 0, AnimatorConditionMode.Equals, i, "GestureLeft");
+                    }
+
+                    controller.layers = layers;
+
+                    /*Right Hand*/
+                    controller.AddLayer("Right Hand");
+                    layers = controller.layers;
+                    index = LayerIndex(layers, "Right Hand");
+                    selectedLayer = layers[index];
+                    states = layers[index].stateMachine;
+                    location = new Vector3(0, 0);
+                    states.entryPosition = location;
+                    location[1] += 50;
+                    states.anyStatePosition = location;
+                    location[1] += 50;
+                    states.exitPosition = location;
+                    selectedLayer.defaultWeight = 1;
+                    controller.layers = layers;
+
+                    mask = AssetDatabase.LoadAssetAtPath("Assets/VRCSDK/Examples3/Animation/Masks/vrc_Hand Right.mask", typeof(AvatarMask)) as AvatarMask;
+                    if (mask == null)
+                        Debug.LogError("Mask doesn't exit at location");
+                    selectedLayer.avatarMask = mask;
+
+                    location = new Vector3(200, 0);
+
+                    for (int i = 0; i < poses.Length; i++)
+                    {
+                        AnimatorState state = createState(AssetDatabase.LoadAssetAtPath(path + animations[i] + ".anim", typeof(Motion)) as Motion, states, location);
+                        state.name = poses[i];
+                        statesList.Add(state);
+                        location[1] += 50;
+                    }
+
+                    for (int i = 0; i < statesList.Count; i++)
+                    {
+                        createTransition(states, statesList[i], false, 0, AnimatorConditionMode.Equals, i, "GestureRight");
+                    }
+
+                    controller.layers = layers;
+
+                    AssetDatabase.Refresh();
+
+                    break;
+                }
             case "action":
                 {
                     controller.AddParameter("VRCEmote", AnimatorControllerParameterType.Int);
@@ -490,7 +602,7 @@ public class Yelby_Environment : EditorWindow
 
                     for(int i = 0; i < animatorStateList.Count; i++)
                     {
-                        DoTransition(animatorStateList[i], animatorStateList, type);
+                        DoTransition(animatorStateList[i], animatorStateList, layers[0], type);
                     }
 
                     break;
@@ -551,7 +663,7 @@ public class Yelby_Environment : EditorWindow
 
                     location = new Vector3(200, 0);
                     List<AnimatorState> statesList = new List<AnimatorState>();
-                        statesList.Add(createState(animation, states, location));
+                    statesList.Add(createState(animation, states, location));
 
                     string[] poses = {"First","Open","Point","Peace","Rock n Roll", "Gun", "Thumbs up"};
 
@@ -686,7 +798,7 @@ public class Yelby_Environment : EditorWindow
         return stateMachine;
     }
 
-    private void DoTransition(AnimatorState state, List<AnimatorState> list, string type)
+    private void DoTransition(AnimatorState state, List<AnimatorState> list, AnimatorControllerLayer layer, string type)
     {
         switch(type)
         {
@@ -716,25 +828,22 @@ public class Yelby_Environment : EditorWindow
                             }
                         case "Prepare Standing":
                             {
-                                string[] proxyAnimations = { "proxy_stand_wave",
-                                                             "proxy_stand_clap",
-                                                             "proxy_stand_point",
-                                                             "proxy_stand_cheer",
-                                                             "proxy_dance",
-                                                             "proxy_backflip",
-                                                             "proxy_stand_sadkick",
-                                                             "proxy_die"};
-
                                 int blendOut = StateIndex(list, "BlendOut Stand");
                                 for (int i = 0; i < list.Count; i++)
                                 {
-                                    for(int j = 0; j < proxyAnimations.Length; j++)
+                                    for (int j = 0; j < layer.stateMachine.stateMachines.Length; j++)
                                     {
-                                        if (list[i].name == proxyAnimations[j])
+                                        if (layer.stateMachine.stateMachines[j].stateMachine.name == "FullBodyAnimations")
                                         {
-                                            createTransition(state, list[i], false, 0.25f, AnimatorConditionMode.Equals, j+1, "VRCEmote");
-                                            createTransition(list[i], list[blendOut], false, 0.25f, AnimatorConditionMode.NotEqual, j + 1, "VRCEmote");
-                                            break;
+                                            for (int p = 0; p < layer.stateMachine.stateMachines[j].stateMachine.states.Length; p++)
+                                            {
+                                                if (list[i].name == "VRCEmote " + (p + 1))
+                                                {
+                                                    createTransition(state, list[i], false, 0.25f, AnimatorConditionMode.Equals, p + 1, "VRCEmote");
+                                                    createTransition(list[i], list[blendOut], false, 0.25f, AnimatorConditionMode.NotEqual, p + 1, "VRCEmote");
+                                                    break;
+                                                }
+                                            }
                                         }
                                     }
                                 }
@@ -779,25 +888,22 @@ public class Yelby_Environment : EditorWindow
 
                         case "Prepare Sitting":
                             {
-                                string[] proxyAnimations = { "proxy_seated_raise_hand",
-                                                             "proxy_seated_clap",
-                                                             "proxy_seated_point",
-                                                             "proxy_seated_laugh",
-                                                             "proxy_seated_drum",
-                                                             "proxy_seated_shake_fist",
-                                                             "proxy_seated_disapprove",
-                                                             "proxy_seated_disbelief"};
-
                                 int blendOut = StateIndex(list, "BlendOut Sit");
                                 for (int i = 0; i < list.Count; i++)
                                 {
-                                    for (int j = 0; j < proxyAnimations.Length; j++)
+                                    for (int j = 0; j < layer.stateMachine.stateMachines.Length; j++)
                                     {
-                                        if (list[i].name == proxyAnimations[j])
+                                        if(layer.stateMachine.stateMachines[j].stateMachine.name == "SittingAnimations")
                                         {
-                                            createTransition(state, list[i], false, 0.25f, AnimatorConditionMode.Equals, j + 9, "VRCEmote");
-                                            createTransition(list[i], list[blendOut], false, 0.25f, AnimatorConditionMode.NotEqual, j + 9, "VRCEmote");
-                                            break;
+                                            for(int p = 0; p < layer.stateMachine.stateMachines[j].stateMachine.states.Length; p++)
+                                            {
+                                                if (list[i].name == "VRCEmote " + (p + 9))
+                                                {
+                                                    createTransition(state, list[i], false, 0.25f, AnimatorConditionMode.Equals, p + 9, "VRCEmote");
+                                                    createTransition(list[i], list[blendOut], false, 0.25f, AnimatorConditionMode.NotEqual, p + 9, "VRCEmote");
+                                                    break;
+                                                }
+                                            }
                                         }
                                     }
                                 }
